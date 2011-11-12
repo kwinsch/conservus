@@ -34,13 +34,19 @@ var PORT = 8023;
 
 var formidable = require('formidable'),
     http = require('http'),
-    sys = require('sys'),
+    router = require('choreographer').router(),
+    static = require('node-static'),
     fs = require('fs'),
     path = require('path');
 
-http.createServer(function(req, res) {
+router.get('/blob/*', function(req, res, key) {
+  var path = key.substring(0,2) + '/' + key.substring(2);
+  console.log(path);
+  var file = new static.Server(blob_store);
+  file.serveFile(path, 200, {}, req, res);
+})
+.post('/blob', function(req, res) {
   // Store a new blob
-  if(req.url == '/blob' && req.method.toLowerCase() == 'post') {
     var form = new formidable.IncomingForm();
     form.uploadDir = blob_temp;
     form.keepExtensions = false;
@@ -75,11 +81,13 @@ http.createServer(function(req, res) {
       });
 
     form.parse(req);
-  } else {
+})
+.notFound(function(req, res) {
     res.writeHead(404, {'content-type': 'application/json'});
     res.end("{'status': 'failed', 'error': 'URLNotFound'}");
-  }
-}).listen(PORT);
+});
+
+http.createServer(router).listen(PORT);
 
 console.log('listening on http://localhost:' + PORT + '/');
 
