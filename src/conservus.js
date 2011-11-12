@@ -28,15 +28,15 @@
 # POSSIBILITY OF SUCH DAMAGE.
 */
 
-var blob_store = '/srv/conservus/blobs/';
-var blob_temp = '/tmp';
-var PORT = 23;
+var blob_store = '/tmp/conservus/blobs';
+var blob_temp = '/tmp/conservus/temp';
+var PORT = 8023;
 
 var formidable = require('formidable'),
     http = require('http'),
     sys = require('sys'),
-    crypto = require('crypto'),
-    fs = require('fs');
+    fs = require('fs'),
+    path = require('path');
 
 http.createServer(function(req, res) {
   // Store a new blob
@@ -44,37 +44,34 @@ http.createServer(function(req, res) {
     var form = new formidable.IncomingForm();
     form.uploadDir = blob_temp;
     form.keepExtensions = false;
-
-    var shasum = crypto.createHash('sha1')
+    form.checksum = 'sha1';
 
     form
       .on('file', function(name, file) {
-        var s = fs.ReadStream(file.path);
-        s.on('data', function(d) {
-          shasum.update(d);
-        });
+          console.log('hashing complete');
+          console.log('key: ' + file.checksum);
+          var file_dir = blob_store + '/' + file.checksum.substring(0,2);
+          var file_name = file_dir + '/' + file.checksum.substring(2);
 
-        var file_hash = shasum.digest('hex').toLowerCase();
-        var file_dir = blob_store + '/' + file_hash.substring(0,2);
-        var file_name = file_dir + '/' + file_hash.substring(2);
+          if(!path.existsSync(file_dir)) {
+            console.log(file.checksum.substring(0,2) + ' does not exist');
+            fs.mkdirSync(file_dir);
+          }
 
-        fs.rename(file.path, file_name, function (err) {
-          if(err) throw err;
-          console.log('rename complete');
-        });
+          console.log(file_name);
+          fs.rename(file.path, file_name, function (err) {
+            if(err) throw err;
+            console.log('rename complete');
+          });
+
+          res.writeHead(200, {'content-type': 'application/json'});
+          res.end("{'status': 'success', 'key': '" + file.checksum +"'}");
       })
       .on('error', function(err) {
         console.log('Error ocured');
-        console.log(err)
+        console.log(err);
         res.writeHead(500, {'content-type': 'application/json'});
         res.end("{'status': 'failed', 'error': 'ErrorOnProcessing'}");
-      })
-      .on('end', function() {
-        var file_hash = shasum.digest('hex').toLowerCase();
-        console.log('-> upload done');
-        console.log('key: ' + file_hash);
-        res.writeHead(200, {'content-type': 'application/json'});
-        res.end("{'status': 'success', 'key': '" + file_hash +"'}");
       });
 
     form.parse(req);
