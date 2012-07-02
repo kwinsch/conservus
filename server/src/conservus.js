@@ -35,14 +35,14 @@ var PORT = 8023;
 var formidable = require('formidable'),
     http = require('http'),
     router = require('choreographer').router(),
-    static = require('node-static'),
+    webstatic = require('node-static'),
     fs = require('fs'),
     path = require('path');
 
 router.get('/blob/*', function(req, res, key) {
   var path = key.substring(0,2) + '/' + key.substring(2);
   console.log(path);
-  var file = new static.Server(blob_store);
+  var file = new webstatic.Server(blob_store);
   file.serveFile(path, 200, {}, req, res);
 })
 .post('/blob', function(req, res) {
